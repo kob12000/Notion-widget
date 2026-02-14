@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic Calendar</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #161922;
+    --surface-hover: #1c1f2e;
+    --border: #252836;
+    --text: #e1e4ea;
+    --text-dim: #8a8f9e;
+    --text-muted: #555a6e;
+    --red-high: #e8384f;
+    --red-high-bg: rgba(232, 56, 79, 0.08);
+    --green-actual: #4caf50;
+    --accent: #5b7fff;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    font-size: 13px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 12px 16px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  .header-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+  }
+
+  .badge-usd {
+    background: rgba(91, 127, 255, 0.12);
+    color: var(--accent);
+  }
+
+  .badge-high {
+    background: var(--red-high-bg);
+    color: var(--red-high);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .header-week {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 2px 7px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .col-headers {
+    display: grid;
+    grid-template-columns: 72px 36px 1fr 70px 70px 70px;
+    padding: 8px 8px 6px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .col-header {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .col-header.right { text-align: right; }
+
+  .day-group { margin-top: 2px; }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 6px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .day-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.03em;
+  }
+
+  .day-date {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .day-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .day-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .event-row {
+    display: grid;
+    grid-template-columns: 72px 36px 1fr 70px 70px 70px;
+    align-items: center;
+    padding: 9px 8px;
+    border-radius: 6px;
+    transition: background 0.12s;
+    gap: 8px;
+  }
+
+  .event-row:hover { background: var(--surface-hover); }
+
+  .event-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .event-impact { display: flex; justify-content: center; }
+
+  .impact-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--red-high);
+    box-shadow: 0 0 6px rgba(232, 56, 79, 0.3);
+  }
+
+  .event-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .event-forecast,
+  .event-previous,
+  .event-actual {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .event-forecast { color: var(--text-dim); }
+  .event-previous { color: var(--text-muted); }
+  .event-actual { color: var(--green-actual); font-weight: 500; }
+  .event-actual.empty { color: var(--text-muted); }
+
+  .event-row.is-today { background: var(--surface); }
+
+  .event-row.is-next {
+    border-left: 2px solid var(--accent);
+    padding-left: 6px;
+  }
+
+  .loading, .error-state, .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    text-align: center;
+  }
+
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .error-text {
+    font-size: 12px;
+    color: var(--red-high);
+  }
+
+  .retry-btn {
+    margin-top: 10px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    cursor: pointer;
+  }
+
+  .retry-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .source-note {
+    padding: 12px 0 4px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+  }
+
+  @media (max-width: 600px) {
+    .event-row, .col-headers {
+      grid-template-columns: 60px 28px 1fr 56px 56px;
+    }
+    .event-actual, .col-header:nth-child(6) { display: none; }
+    .event-title { font-size: 12px; }
+    .header-week { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <span class="header-title">Economic Calendar</span>
+      <span class="header-badge badge-usd">USD</span>
+      <span class="header-badge badge-high">HIGH IMPACT</span>
+    </div>
+    <div class="header-right">
+      <span class="header-week" id="week-range"></span>
+      <span class="header-time" id="clock"></span>
+    </div>
+  </div>
+
+  <div class="col-headers">
+    <span class="col-header">Time (UTC)</span>
+    <span class="col-header"></span>
+    <span class="col-header">Event</span>
+    <span class="col-header right">Forecast</span>
+    <span class="col-header right">Previous</span>
+    <span class="col-header right">Actual</span>
+  </div>
+
+  <div id="calendar-body">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <span class="loading-text">Loading calendar data...</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  var JSON_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+  var CORS_PROXIES = [
+    function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
+    function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
+    function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
+    function(u) { return u; }
+  ];
+
+  var allEvents = [];
+
+  function updateClock() {
+    var now = new Date();
+    var h = String(now.getUTCHours()).padStart(2, '0');
+    var m = String(now.getUTCMinutes()).padStart(2, '0');
+    var s = String(now.getUTCSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = 'UTC ' + h + ':' + m + ':' + s;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  function setWeekRange() {
+    var now = new Date();
+    var day = now.getUTCDay();
+    var mon = new Date(now);
+    mon.setUTCDate(now.getUTCDate() - (day === 0 ? 6 : day - 1));
+    var fri = new Date(mon);
+    fri.setUTCDate(mon.getUTCDate() + 4);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('week-range').textContent =
+      months[mon.getUTCMonth()] + ' ' + mon.getUTCDate() + ' \u2013 ' +
+      months[fri.getUTCMonth()] + ' ' + fri.getUTCDate();
+  }
+  setWeekRange();
+
+  async function fetchCalendar() {
+    for (var i = 0; i < CORS_PROXIES.length; i++) {
+      try {
+        var url = CORS_PROXIES[i](JSON_URL);
+        var resp = await fetch(url, { cache: 'no-cache' });
+        if (!resp.ok) continue;
+        var text = await resp.text();
+        var first = text.trim().charAt(0);
+        if (first === '[' || first === '{') {
+          var data = JSON.parse(text);
+          if (Array.isArray(data) && data.length > 0) return data;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+    throw new Error('All sources failed');
+  }
+
+  function filterEvents(events) {
+    return events.filter(function(e) {
+      return e.country === 'USD' && e.impact === 'High';
+    });
+  }
+
+  function formatTimeUTC(dateStr) {
+    try {
+      var d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '\u2014';
+      var h = d.getUTCHours();
+      var m = String(d.getUTCMinutes()).padStart(2, '0');
+      var ampm = h >= 12 ? 'pm' : 'am';
+      var h12 = h % 12 || 12;
+      return h12 + ':' + m + ' ' + ampm;
+    } catch (e) { return '\u2014'; }
+  }
+
+  function formatDayHeader(dateStr) {
+    try {
+      var d = new Date(dateStr);
+      var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return { name: days[d.getUTCDay()], date: months[d.getUTCMonth()] + ' ' + d.getUTCDate() };
+    } catch (e) { return { name: '', date: '' }; }
+  }
+
+  function getDayKey(dateStr) {
+    try {
+      var d = new Date(dateStr);
+      return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0');
+    } catch (e) { return 'unknown'; }
+  }
+
+  function isTodayUTC(dateStr) {
+    var now = new Date();
+    var d = new Date(dateStr);
+    return d.getUTCFullYear() === now.getUTCFullYear() &&
+           d.getUTCMonth() === now.getUTCMonth() &&
+           d.getUTCDate() === now.getUTCDate();
+  }
+
+  function renderCalendar() {
+    var body = document.getElementById('calendar-body');
+    var filtered = filterEvents(allEvents);
+
+    if (filtered.length === 0) {
+      body.innerHTML = '<div class="empty-state"><span class="loading-text">No high impact USD events this week</span></div>';
+      return;
+    }
+
+    var groups = {};
+    filtered.forEach(function(e) {
+      var key = getDayKey(e.date);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(e);
+    });
+
+    var sortedDays = Object.keys(groups).sort();
+
+    var now = new Date();
+    var nextEventDate = null;
+    for (var i = 0; i < filtered.length; i++) {
+      if (new Date(filtered[i].date) > now) { nextEventDate = filtered[i].date; break; }
+    }
+
+    var html = '';
+    for (var d = 0; d < sortedDays.length; d++) {
+      var dayKey = sortedDays[d];
+      var events = groups[dayKey];
+      var info = formatDayHeader(events[0].date);
+      var today = isTodayUTC(events[0].date);
+
+      html += '<div class="day-group"><div class="day-header">' +
+        '<span class="day-name">' + info.name + '</span>' +
+        '<span class="day-date">' + info.date + '</span>' +
+        '<div class="day-line"></div>' +
+        '<span class="day-count">' + events.length + '</span></div>';
+
+      for (var j = 0; j < events.length; j++) {
+        var e = events[j];
+        var isNext = e.date === nextEventDate;
+        var todayClass = today ? ' is-today' : '';
+        var nextClass = isNext ? ' is-next' : '';
+        var actual = e.actual || '';
+        var forecast = e.forecast || '\u2014';
+        var previous = e.previous || '\u2014';
+
+        html += '<div class="event-row' + todayClass + nextClass + '">' +
+          '<span class="event-time">' + formatTimeUTC(e.date) + '</span>' +
+          '<span class="event-impact"><span class="impact-dot"></span></span>' +
+          '<span class="event-title" title="' + (e.title || '') + '">' + (e.title || 'Unknown') + '</span>' +
+          '<span class="event-forecast">' + forecast + '</span>' +
+          '<span class="event-previous">' + previous + '</span>' +
+          '<span class="event-actual ' + (actual ? '' : 'empty') + '">' + (actual || '\u2014') + '</span>' +
+          '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    html += '<div class="source-note">Source: Forex Factory \u00B7 This week \u00B7 Times in UTC</div>';
+    body.innerHTML = html;
+  }
+
+  async function init() {
+    try {
+      allEvents = await fetchCalendar();
+      allEvents.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+      renderCalendar();
+    } catch (err) {
+      document.getElementById('calendar-body').innerHTML =
+        '<div class="error-state">' +
+        '<span class="error-text">Could not load calendar data</span>' +
+        '<span class="loading-text" style="margin-top:6px">Deploy to GitHub Pages and embed in Notion to test</span>' +
+        '<button class="retry-btn" onclick="init()">Retry</button>' +
+        '</div>';
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
