@@ -325,12 +325,12 @@
 </div>
 
 <script>
-  var JSON_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json';
-  var CORS_PROXIES = [
-    function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); },
-    function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
-    function(u) { return 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u); },
-    function(u) { return u; }
+  // Primary: your Cloudflare Worker (reliable, no CORS issues)
+  // Fallbacks: public CORS proxies
+  var SOURCES = [
+    'https://ff-calendar.mahdikob75000.workers.dev',
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json'),
+    'https://corsproxy.io/?' + encodeURIComponent('https://nfs.faireconomy.media/ff_calendar_thisweek.json')
   ];
 
   var allEvents = [];
@@ -345,46 +345,42 @@
   updateClock();
   setInterval(updateClock, 1000);
 
-  function setWeekRange() {
-    // Show the week range based on the data, fallback to current week
-    var now = new Date();
-    var day = now.getUTCDay();
-    var mon = new Date(now);
-    mon.setUTCDate(now.getUTCDate() - (day === 0 ? 6 : day - 1));
-    var fri = new Date(mon);
-    fri.setUTCDate(mon.getUTCDate() + 4);
+  function updateWeekRange(events) {
     var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    document.getElementById('week-range').textContent =
-      months[mon.getUTCMonth()] + ' ' + mon.getUTCDate() + ' \u2013 ' +
-      months[fri.getUTCMonth()] + ' ' + fri.getUTCDate();
-  }
+    // Filter to only USD High events to get the correct week
+    var usdHigh = events.filter(function(e) { return e.country === 'USD' && e.impact === 'High'; });
+    var source = usdHigh.length > 0 ? usdHigh : events;
 
-  function updateWeekRangeFromData(events) {
-    if (!events || events.length === 0) return;
-    var dates = events.map(function(e) { return new Date(e.date); }).filter(function(d) { return !isNaN(d.getTime()); });
-    if (dates.length === 0) return;
+    var dates = source.map(function(e) { return new Date(e.date); }).filter(function(d) { return !isNaN(d.getTime()); });
+    if (dates.length === 0) {
+      // Fallback to current week
+      var now = new Date();
+      var day = now.getUTCDay();
+      var mon = new Date(now);
+      mon.setUTCDate(now.getUTCDate() - (day === 0 ? 6 : day - 1));
+      var fri = new Date(mon);
+      fri.setUTCDate(mon.getUTCDate() + 4);
+      document.getElementById('week-range').textContent =
+        months[mon.getUTCMonth()] + ' ' + mon.getUTCDate() + ' \u2013 ' + months[fri.getUTCMonth()] + ' ' + fri.getUTCDate();
+      return;
+    }
+
     dates.sort(function(a, b) { return a - b; });
-    var first = dates[0];
-    var last = dates[dates.length - 1];
-    // Find Monday of that week
-    var day = first.getUTCDay();
-    var mon = new Date(first);
-    mon.setUTCDate(first.getUTCDate() - (day === 0 ? 6 : day - 1));
+    // Use the middle of the date range to find the correct week
+    var mid = dates[Math.floor(dates.length / 2)];
+    var day = mid.getUTCDay();
+    var mon = new Date(mid);
+    mon.setUTCDate(mid.getUTCDate() - (day === 0 ? 6 : day - 1));
     var fri = new Date(mon);
     fri.setUTCDate(mon.getUTCDate() + 4);
-    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     document.getElementById('week-range').textContent =
-      months[mon.getUTCMonth()] + ' ' + mon.getUTCDate() + ' \u2013 ' +
-      months[fri.getUTCMonth()] + ' ' + fri.getUTCDate();
+      months[mon.getUTCMonth()] + ' ' + mon.getUTCDate() + ' \u2013 ' + months[fri.getUTCMonth()] + ' ' + fri.getUTCDate();
   }
-
-  setWeekRange();
 
   async function fetchCalendar() {
-    for (var i = 0; i < CORS_PROXIES.length; i++) {
+    for (var i = 0; i < SOURCES.length; i++) {
       try {
-        var url = CORS_PROXIES[i](JSON_URL);
-        var resp = await fetch(url, { cache: 'no-cache' });
+        var resp = await fetch(SOURCES[i], { cache: 'no-cache' });
         if (!resp.ok) continue;
         var text = await resp.text();
         var first = text.trim().charAt(0);
@@ -483,10 +479,9 @@
         var isNext = e.date === nextEventDate;
         var todayClass = today ? ' is-today' : '';
         var nextClass = isNext ? ' is-next' : '';
-        // Try multiple field names for actual value
-        var actual = e.actual || e.actualValue || e.actual_value || '';
-        var forecast = e.forecast || e.forecastValue || '\u2014';
-        var previous = e.previous || e.previousValue || '\u2014';
+        var actual = e.actual || '';
+        var forecast = e.forecast || '\u2014';
+        var previous = e.previous || '\u2014';
 
         html += '<div class="event-row' + todayClass + nextClass + '">' +
           '<span class="event-time">' + formatTimeUTC(e.date) + '</span>' +
@@ -509,13 +504,13 @@
     try {
       allEvents = await fetchCalendar();
       allEvents.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
-      updateWeekRangeFromData(allEvents);
+      updateWeekRange(allEvents);
       renderCalendar();
     } catch (err) {
       document.getElementById('calendar-body').innerHTML =
         '<div class="error-state">' +
         '<span class="error-text">Could not load calendar data</span>' +
-        '<span class="loading-text" style="margin-top:6px">Try refreshing \u2014 CORS proxy may be temporarily down</span>' +
+        '<span class="loading-text" style="margin-top:6px">Try refreshing</span>' +
         '<button class="retry-btn" onclick="init()">Retry</button>' +
         '</div>';
     }
