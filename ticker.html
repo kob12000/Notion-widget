@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: transparent; overflow: hidden; height: 46px; }
+  .tradingview-widget-copyright { display: none !important; }
+  .tradingview-widget-container { height: 46px; overflow: hidden; }
+</style>
+</head>
+<body>
+<div class="tradingview-widget-container">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+    "symbols": [
+      {"proName": "AMEX:SPY", "description": "SPY"},
+      {"proName": "NASDAQ:QQQ", "description": "QQQ"},
+      {"proName": "AMEX:DIA", "description": "DIA"},
+      {"proName": "AMEX:IWM", "description": "IWM"},
+      {"proName": "NASDAQ:NVDA", "description": "NVDA"},
+      {"proName": "NASDAQ:AAPL", "description": "AAPL"},
+      {"proName": "NASDAQ:MSFT", "description": "MSFT"},
+      {"proName": "NASDAQ:GOOGL", "description": "GOOGL"},
+      {"proName": "NASDAQ:AMZN", "description": "AMZN"},
+      {"proName": "NASDAQ:META", "description": "META"},
+      {"proName": "NASDAQ:TSLA", "description": "TSLA"},
+      {"proName": "NASDAQ:SMH", "description": "SMH"},
+      {"proName": "AMEX:GLD", "description": "GLD"},
+      {"proName": "BINANCE:BTCUSDT", "description": "BTC"}
+    ],
+    "showSymbolLogo": true,
+    "isTransparent": true,
+    "displayMode": "compact",
+    "colorTheme": "dark",
+    "locale": "en"
+  }
+  </script>
+</div>
+</body>
+</html>
