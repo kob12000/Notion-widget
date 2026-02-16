@@ -248,11 +248,14 @@ function easterDate(year) {
 
 function getUSHolidays(year) {
   const easter = easterDate(year);
+  // Good Friday: 2 days before Easter - use Date math to handle month boundary
+  const easterDt = new Date(Date.UTC(year, easter.month, easter.day));
+  const goodFridayDt = new Date(easterDt - 2 * 86400000);
   return [
     { m: 0, d: 1, name: "New Year's Day" },
     { m: 0, d: nthWeekday(year, 0, 1, 3), name: 'MLK Day' },
     { m: 1, d: nthWeekday(year, 1, 1, 3), name: "Presidents' Day" },
-    { m: easter.month, d: easter.day - 2, name: 'Good Friday' },
+    { m: goodFridayDt.getUTCMonth(), d: goodFridayDt.getUTCDate(), name: 'Good Friday' },
     { m: 4, d: lastMonday(year, 4), name: 'Memorial Day' },
     { m: 5, d: 19, name: 'Juneteenth' },
     { m: 6, d: 4, name: 'Independence Day' },
@@ -302,9 +305,15 @@ function isHoliday(market, now) {
     return holidays.some(h => {
       let hm = h.m, hd = h.d;
       // Adjust fixed-date holidays for observed day
-      if (['Juneteenth','Independence Day','Christmas',"New Year's Day"].includes(h.name)) {
+      // Special NYSE rule: New Year's Day on Saturday is NOT observed (no Friday closure)
+      if (['Juneteenth','Independence Day','Christmas'].includes(h.name)) {
         const dow = new Date(Date.UTC(y, hm, hd)).getUTCDay();
         if (dow === 6) hd -= 1; // Saturday → Friday
+        if (dow === 0) hd += 1; // Sunday → Monday
+      }
+      if (h.name === "New Year's Day") {
+        const dow = new Date(Date.UTC(y, hm, hd)).getUTCDay();
+        if (dow === 6) return false; // Saturday → not observed at all
         if (dow === 0) hd += 1; // Sunday → Monday
       }
       return m === hm && d === hd;
@@ -322,9 +331,14 @@ function getHolidayName(market, now) {
   if (market.id === 'nyse') {
     for (const h of holidays) {
       let hd = h.d;
-      if (['Juneteenth','Independence Day','Christmas',"New Year's Day"].includes(h.name)) {
+      if (['Juneteenth','Independence Day','Christmas'].includes(h.name)) {
         const dow = new Date(Date.UTC(y, h.m, hd)).getUTCDay();
         if (dow === 6) hd -= 1;
+        if (dow === 0) hd += 1;
+      }
+      if (h.name === "New Year's Day") {
+        const dow = new Date(Date.UTC(y, h.m, hd)).getUTCDay();
+        if (dow === 6) continue; // Not observed
         if (dow === 0) hd += 1;
       }
       if (m === h.m && d === hd) return h.name;
